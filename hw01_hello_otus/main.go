@@ -5,7 +5,7 @@ import (
 	"golang.org/x/example/stringutil"
 )
 
-var msg="Hello, OTUS!"
+var msg = "Hello, OTUS!"
 
 func main() {
 	fmt.Println(stringutil.Reverse(msg))
