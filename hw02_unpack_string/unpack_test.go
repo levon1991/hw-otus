@@ -21,7 +21,7 @@ func TestUnpack(t *testing.T) {
 		{input: `qwe\45`, expected: `qwe44444`},
 		{input: `qwe\\5`, expected: `qwe\\\\\`},
 		{input: `qwe\\\3`, expected: `qwe\3`},
-		//with space
+		// with space
 		{input: "ab cd", expected: "ab cd"},
 		{input: "ab 3cd", expected: "ab   cd"},
 		{input: " 7aa1b", expected: "       aab"},

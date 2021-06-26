@@ -10,7 +10,6 @@ import (
 var ErrInvalidString = errors.New("invalid string")
 
 func Unpack(str string) (string, error) {
-
 	var res strings.Builder
 
 	if len(str) > 0 && unicode.IsDigit(rune(str[0])) {
@@ -19,27 +18,9 @@ func Unpack(str string) (string, error) {
 
 	var last string
 	for i, v := range str {
-		//check number after number case
-		if i != len(str)-1 && unicode.IsDigit(rune(str[i])) && unicode.IsDigit(rune(str[i+1])) && last != "\\" {
-			return "", ErrInvalidString
-		}
-		if !unicode.IsDigit(v) {
-			//check \ after \ case
-			if last == "\\" && string(v) == "\\" {
-				last = "\\\\"
-				continue
-			}
-			if last == "\\\\" && string(v) == "\\" {
-				last = string(v)
-				res.WriteString(last)
-			}
-
-			last = string(v)
-			if last == "\\" {
-				continue
-			}
-			res.WriteString(last)
-		} else {
+		ifNum := unicode.IsDigit(v)
+		switch ifNum {
+		case true:
 			num, _ := strconv.Atoi(string(v))
 			if num == 0 {
 				subStr := res.String()[:len(res.String())-1]
@@ -52,15 +33,29 @@ func Unpack(str string) (string, error) {
 				last = string(v)
 				res.WriteString(last)
 				continue
+			} else if i != len(str)-1 && unicode.IsDigit(rune(str[i+1])) {
+				return "", ErrInvalidString
 			}
-			//check \ after \ case
+			// check \ after \ case
 			if last == "\\\\" {
 				last = "\\"
 				res.WriteString(last)
 			}
 			subStr := strings.Repeat(last, num-1)
 			res.WriteString(subStr)
-
+		case false:
+			if string(v) == "\\" {
+				if last == "\\\\" {
+					res.WriteString(string(v))
+				} else if last == "\\" {
+					last = "\\\\"
+					continue
+				}
+				last = string(v)
+				continue
+			}
+			last = string(v)
+			res.WriteString(last)
 		}
 	}
 
