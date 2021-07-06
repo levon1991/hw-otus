@@ -17,10 +17,10 @@ func TestUnpack(t *testing.T) {
 		{input: "", expected: ""},
 		{input: "aaa0b", expected: "aab"},
 		// uncomment if task with asterisk completed
-		{input: `qwe\4\5`, expected: `qwe45`},
+		/*{input: `qwe\4\5`, expected: `qwe45`},
 		{input: `qwe\45`, expected: `qwe44444`},
 		{input: `qwe\\5`, expected: `qwe\\\\\`},
-		{input: `qwe\\\3`, expected: `qwe\3`},
+		{input: `qwe\\\3`, expected: `qwe\3`},*/
 		// with space
 		{input: "ab cd", expected: "ab cd"},
 		{input: "ab 3cd", expected: "ab   cd"},
@@ -48,13 +48,15 @@ func TestUnpackInvalidString(t *testing.T) {
 	}
 }
 
-func TestUnpackWithSpaceString(t *testing.T) {
+func TestUnpackWithUnicode(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
 	}{
-		{input: "", expected: ""},
+		{input: "Լ5և2ո4ն", expected: "ԼԼԼԼԼևևոոոոն"},
+		{input: "Баг4рамя2н", expected: "Багггграмяян"},
 	}
+
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.input, func(t *testing.T) {

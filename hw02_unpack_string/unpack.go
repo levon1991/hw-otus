@@ -12,52 +12,34 @@ var ErrInvalidString = errors.New("invalid string")
 func Unpack(str string) (string, error) {
 	var res strings.Builder
 
-	if len(str) > 0 && unicode.IsDigit(rune(str[0])) {
-		return res.String(), ErrInvalidString
-	}
+	var last rune
 
-	var last string
 	for i, v := range str {
-		ifNum := unicode.IsDigit(v)
-		switch ifNum {
-		case true:
-			num, _ := strconv.Atoi(string(v))
-			if num == 0 {
-				subStr := res.String()[:len(res.String())-1]
-				res.Reset()
-				res.WriteString(subStr)
-				continue
+		if i == 0 {
+			if unicode.IsDigit(v) {
+				return res.String(), ErrInvalidString
 			}
-
-			if last == "\\" {
-				last = string(v)
-				res.WriteString(last)
-				continue
-			} else if i != len(str)-1 && unicode.IsDigit(rune(str[i+1])) {
-				return "", ErrInvalidString
-			}
-			// check \ after \ case
-			if last == "\\\\" {
-				last = "\\"
-				res.WriteString(last)
-			}
-			subStr := strings.Repeat(last, num-1)
-			res.WriteString(subStr)
-		case false:
-			if string(v) == "\\" {
-				if last == "\\\\" {
-					res.WriteString(string(v))
-				} else if last == "\\" {
-					last = "\\\\"
-					continue
-				}
-				last = string(v)
-				continue
-			}
-			last = string(v)
-			res.WriteString(last)
+			last = v
+			continue
 		}
+		if unicode.IsDigit(v) {
+			if unicode.IsDigit(last) {
+				return res.String(), ErrInvalidString
+			}
+			if num, _ := strconv.Atoi(string(v)); num == 0 {
+				last = v
+				continue
+			} else {
+				subStr := strings.Repeat(string(last), num)
+				res.WriteString(subStr)
+			}
+		} else if !unicode.IsDigit(last) {
+			res.WriteString(string(last))
+		}
+		last = v
 	}
-
+	if string(last) != "\x00" && !unicode.IsDigit(last) {
+		res.WriteString(string(last))
+	}
 	return res.String(), nil
 }
