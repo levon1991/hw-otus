@@ -43,9 +43,33 @@ var text = `Как видите, он  спускается  по  лестни�
 	посидеть у огня и послушать какую-нибудь интересную сказку.
 		В этот вечер...`
 
+var text2 = `Как   своим
+	я  Для 
+	  что  я  ты 
+	 а теперь
+	  а я`
+
 func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
+	})
+
+	t.Run("string only with special symbols", func(t *testing.T) {
+		require.Len(t, Top10("\n\t     \r  \n"), 0)
+	})
+
+	t.Run("text with less then 10 words", func(t *testing.T) {
+		expected := []string{
+			"я",      // 3
+			"а",      // 2
+			"Для",    // 1
+			"Как",    // 1
+			"своим",  // 1
+			"теперь", // 1
+			"ты",     // 1
+			"что",    // 1
+		}
+		require.Equal(t, expected, Top10(text2))
 	})
 
 	t.Run("positive test", func(t *testing.T) {
