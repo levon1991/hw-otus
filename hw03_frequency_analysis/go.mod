@@ -1,5 +1,6 @@
 module github.com/levon1991/hw-otus/hw03_frequency_analysis
 
+
 go 1.16
 
 require (
