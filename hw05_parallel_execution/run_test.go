@@ -90,6 +90,7 @@ func TestRun(t *testing.T) {
 		err := Run(tasks, workersCount, maxErrorsCount)
 
 		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
+		fmt.Println("runTasksCount: = ", runTasksCount, "workers", workersCount+maxErrorsCount)
 		require.LessOrEqual(t, runTasksCount, int32(workersCount+maxErrorsCount), "extra tasks were started")
 	})
 
@@ -105,8 +106,11 @@ func TestRun(t *testing.T) {
 			sumTime += taskSleep
 
 			tasks = append(tasks, func() error {
-				time.Sleep(taskSleep)
-				atomic.AddInt32(&runTasksCount, 1)
+				interval := time.Second * time.Duration(rand.Intn(100)+1)
+				require.Eventually(t, func() bool {
+					atomic.AddInt32(&runTasksCount, 1)
+					return true
+				}, interval, 500*time.Microsecond)
 				return nil
 			})
 		}

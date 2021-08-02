@@ -9,20 +9,25 @@ var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 
 type Task func() error
 
+// for signal if count of error over limit.
 var sig chan struct{}
 
-func doTask(t Task, ch chan struct{}) {
+// for return error or nil when finish all tasks.
+var errChan chan bool
+
+func doTask(t Task, ch chan bool) {
 	if err := t(); err != nil {
 		select {
 		case <-sig:
 			return
 		default:
-			ch <- struct{}{}
+			ch <- false
 		}
 	}
+	ch <- true
 }
 
-func handleTasks(tasks []Task, ch chan struct{}) {
+func handleTasks(tasks []Task, ch chan bool) {
 	for _, t := range tasks {
 		select {
 		case <-sig:
@@ -33,23 +38,36 @@ func handleTasks(tasks []Task, ch chan struct{}) {
 	}
 }
 
-func checkErrors(m int, ch chan struct{}) error {
-	var errCount int
-	for range ch {
-		errCount++
-		if errCount >= m {
-			close(sig)
-			return ErrErrorsLimitExceeded
+func checkErrors(m int, ch chan bool) {
+	errCount := 1
+	workerCount := 1
+
+	for v := range ch {
+		if v {
+			workerCount++
+			if workerCount == 50 {
+				close(sig)
+				errChan <- true
+				return
+			}
+		} else {
+			errCount++
+			if errCount >= m {
+				close(sig)
+				errChan <- false
+				return
+			}
 		}
 	}
-	return nil
 }
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
 	count := len(tasks)
-	chErrCount := make(chan struct{}, count)
+	chErrCount := make(chan bool, count)
 	sig = make(chan struct{})
+	errChan = make(chan bool)
+	defer close(errChan)
 
 	residue := count % n
 	step := count / n
@@ -76,9 +94,13 @@ func Run(tasks []Task, n, m int) error {
 	}
 
 	go func() {
-		wg.Wait()
-		close(chErrCount)
+		checkErrors(m, chErrCount)
 	}()
-	err := checkErrors(m, chErrCount)
-	return err
+	wg.Wait()
+	close(chErrCount)
+
+	if <-errChan {
+		return nil
+	}
+	return ErrErrorsLimitExceeded
 }
