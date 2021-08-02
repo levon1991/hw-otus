@@ -24,13 +24,68 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
-				atomic.AddInt32(&runTasksCount, 1)
+				interval := time.Second * time.Duration(rand.Intn(100)+1)
+				require.Eventually(t, func() bool {
+					atomic.AddInt32(&runTasksCount, 1)
+					return true
+				}, interval, 500*time.Microsecond)
 				return err
 			})
 		}
 
 		workersCount := 10
+		maxErrorsCount := 23
+		err := Run(tasks, workersCount, maxErrorsCount)
+
+		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
+		require.LessOrEqual(t, runTasksCount, int32(workersCount+maxErrorsCount), "extra tasks were started")
+	})
+
+	t.Run("if the number of tasks is not a multiple of the number of workers", func(t *testing.T) {
+		tasksCount := 50
+		tasks := make([]Task, 0, tasksCount)
+
+		var runTasksCount int32
+
+		for i := 0; i < tasksCount; i++ {
+			err := fmt.Errorf("error from task %d", i)
+			tasks = append(tasks, func() error {
+				interval := time.Second * time.Duration(rand.Intn(100)+1)
+				require.Eventually(t, func() bool {
+					atomic.AddInt32(&runTasksCount, 1)
+					return true
+				}, interval, 500*time.Microsecond)
+				return err
+			})
+		}
+
+		workersCount := 11
+		maxErrorsCount := 23
+		err := Run(tasks, workersCount, maxErrorsCount)
+
+		require.Truef(t, errors.Is(err, ErrErrorsLimitExceeded), "actual err - %v", err)
+		require.LessOrEqual(t, runTasksCount, int32(workersCount+maxErrorsCount), "extra tasks were started")
+	})
+
+	t.Run("if only one worker", func(t *testing.T) {
+		tasksCount := 50
+		tasks := make([]Task, 0, tasksCount)
+
+		var runTasksCount int32
+
+		for i := 0; i < tasksCount; i++ {
+			err := fmt.Errorf("error from task %d", i)
+			tasks = append(tasks, func() error {
+				interval := time.Second * time.Duration(rand.Intn(100)+1)
+				require.Eventually(t, func() bool {
+					atomic.AddInt32(&runTasksCount, 1)
+					return true
+				}, interval, 500*time.Microsecond)
+				return err
+			})
+		}
+
+		workersCount := 1
 		maxErrorsCount := 23
 		err := Run(tasks, workersCount, maxErrorsCount)
 
