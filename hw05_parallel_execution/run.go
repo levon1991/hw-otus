@@ -23,8 +23,9 @@ func doTask(t Task, ch chan bool) {
 		default:
 			ch <- false
 		}
+	} else {
+		ch <- true
 	}
-	ch <- true
 }
 
 func handleTasks(tasks []Task, ch chan bool) {
@@ -38,14 +39,13 @@ func handleTasks(tasks []Task, ch chan bool) {
 	}
 }
 
-func checkErrors(m int, ch chan bool) {
-	errCount := 1
-	workerCount := 1
+func checkErrors(m, count int, ch chan bool) {
+	var errCount, workerCount int
 
 	for v := range ch {
 		if v {
 			workerCount++
-			if workerCount == 50 {
+			if workerCount == count {
 				close(sig)
 				errChan <- true
 				return
@@ -64,7 +64,7 @@ func checkErrors(m int, ch chan bool) {
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
 	count := len(tasks)
-	chErrCount := make(chan bool, count)
+	chErrCount := make(chan bool, n+m)
 	sig = make(chan struct{})
 	errChan = make(chan bool)
 	defer close(errChan)
@@ -94,11 +94,12 @@ func Run(tasks []Task, n, m int) error {
 	}
 
 	go func() {
-		checkErrors(m, chErrCount)
+		checkErrors(m, count, chErrCount)
 	}()
 	wg.Wait()
 	close(chErrCount)
 
+	// Wait for result (all complete or have a more than M errors)
 	if <-errChan {
 		return nil
 	}

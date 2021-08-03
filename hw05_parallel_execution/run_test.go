@@ -24,12 +24,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				interval := time.Second * time.Duration(rand.Intn(100)+1)
-				require.Eventually(t, func() bool {
-					atomic.AddInt32(&runTasksCount, 1)
-					return true
-				}, interval, 500*time.Microsecond)
-				return err
+				return calculateWorkers(t, &runTasksCount, err)
 			})
 		}
 
@@ -50,12 +45,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				interval := time.Second * time.Duration(rand.Intn(100)+1)
-				require.Eventually(t, func() bool {
-					atomic.AddInt32(&runTasksCount, 1)
-					return true
-				}, interval, 500*time.Microsecond)
-				return err
+				return calculateWorkers(t, &runTasksCount, err)
 			})
 		}
 
@@ -76,12 +66,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				interval := time.Second * time.Duration(rand.Intn(100)+1)
-				require.Eventually(t, func() bool {
-					atomic.AddInt32(&runTasksCount, 1)
-					return true
-				}, interval, 500*time.Microsecond)
-				return err
+				return calculateWorkers(t, &runTasksCount, err)
 			})
 		}
 
@@ -106,12 +91,7 @@ func TestRun(t *testing.T) {
 			sumTime += taskSleep
 
 			tasks = append(tasks, func() error {
-				interval := time.Second * time.Duration(rand.Intn(100)+1)
-				require.Eventually(t, func() bool {
-					atomic.AddInt32(&runTasksCount, 1)
-					return true
-				}, interval, 500*time.Microsecond)
-				return nil
+				return calculateWorkers(t, &runTasksCount, nil)
 			})
 		}
 
@@ -126,4 +106,17 @@ func TestRun(t *testing.T) {
 		require.Equal(t, runTasksCount, int32(tasksCount), "not all tasks were completed")
 		require.LessOrEqual(t, int64(elapsedTime), int64(sumTime/2), "tasks were run sequentially?")
 	})
+}
+
+func calculateWorkers(t *testing.T, runTasksCount *int32, err error) error {
+	interval := time.Second * time.Duration(rand.Intn(100)+1)
+	require.Eventually(t, func() bool {
+		select {
+		case <-sig:
+		default:
+			atomic.AddInt32(runTasksCount, 1)
+		}
+		return true
+	}, interval, 500*time.Microsecond)
+	return err
 }
