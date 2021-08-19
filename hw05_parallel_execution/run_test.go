@@ -24,7 +24,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				return calculateWorkers(t, &runTasksCount, err)
+				return calculateWorkers(&runTasksCount, err)
 			})
 		}
 
@@ -45,7 +45,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				return calculateWorkers(t, &runTasksCount, err)
+				return calculateWorkers(&runTasksCount, err)
 			})
 		}
 
@@ -66,7 +66,7 @@ func TestRun(t *testing.T) {
 		for i := 0; i < tasksCount; i++ {
 			err := fmt.Errorf("error from task %d", i)
 			tasks = append(tasks, func() error {
-				return calculateWorkers(t, &runTasksCount, err)
+				return calculateWorkers(&runTasksCount, err)
 			})
 		}
 
@@ -87,11 +87,13 @@ func TestRun(t *testing.T) {
 		var sumTime time.Duration
 
 		for i := 0; i < tasksCount; i++ {
-			taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
+			taskSleep := time.Second * time.Duration(rand.Intn(100))
 			sumTime += taskSleep
 
 			tasks = append(tasks, func() error {
-				return calculateWorkers(t, &runTasksCount, nil)
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
+				atomic.AddInt32(&runTasksCount, 1)
+				return calculateWorkers(&runTasksCount, nil)
 			})
 		}
 
@@ -108,15 +110,8 @@ func TestRun(t *testing.T) {
 	})
 }
 
-func calculateWorkers(t *testing.T, runTasksCount *int32, err error) error {
-	interval := time.Second * time.Duration(rand.Intn(100)+1)
-	require.Eventually(t, func() bool {
-		select {
-		case <-sig:
-		default:
-			atomic.AddInt32(runTasksCount, 1)
-		}
-		return true
-	}, interval, 500*time.Microsecond)
+func calculateWorkers(runTasksCount *int32, err error) error {
+	time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
+	atomic.AddInt32(runTasksCount, 1)
 	return err
 }

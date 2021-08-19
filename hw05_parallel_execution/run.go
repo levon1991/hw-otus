@@ -3,105 +3,47 @@ package hw05parallelexecution
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
 
 type Task func() error
 
-// for signal if count of error over limit.
-var sig chan struct{}
-
-// for return error or nil when finish all tasks.
-var errChan chan bool
-
-func doTask(t Task, ch chan bool) {
-	if err := t(); err != nil {
-		select {
-		case <-sig:
-			return
-		default:
-			ch <- false
-		}
-	} else {
-		ch <- true
-	}
-}
-
-func handleTasks(tasks []Task, ch chan bool) {
-	for _, t := range tasks {
-		select {
-		case <-sig:
-			return
-		default:
-			doTask(t, ch)
-		}
-	}
-}
-
-func checkErrors(m, count int, ch chan bool) {
-	var errCount, workerCount int
-
-	for v := range ch {
-		if v {
-			workerCount++
-			if workerCount == count {
-				close(sig)
-				errChan <- true
-				return
-			}
-		} else {
-			errCount++
-			if errCount >= m {
-				close(sig)
-				errChan <- false
-				return
-			}
+func consumer(taskChan chan Task, errCount *int32, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for task := range taskChan {
+		if err := task(); err != nil {
+			atomic.AddInt32(errCount, 1)
 		}
 	}
 }
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) error {
-	count := len(tasks)
-	chErrCount := make(chan bool, n+m)
-	sig = make(chan struct{})
-	errChan = make(chan bool)
-	defer close(errChan)
+	taskChan := make(chan Task)
 
-	residue := count % n
-	step := count / n
+	wg := &sync.WaitGroup{}
 
-	wg := sync.WaitGroup{}
-
-	var start, end int
-	for i := 0; i < count; i += step {
-		// Это часть спецально для того чтоб можно было ровно делить задачи между воркерами в том случае если
-		// количество задач не кратно количество воркеров
-		end = i + step
-		start = i
-		if residue > 0 {
-			end++
-			residue--
-			i++
-		}
-		taskSubList := tasks[start:end]
+	var errCount int32
+	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go func() {
-			handleTasks(taskSubList, chErrCount)
-			wg.Done()
-		}()
+		go consumer(taskChan, &errCount, wg)
 	}
 
-	go func() {
-		checkErrors(m, count, chErrCount)
-	}()
+	for _, task := range tasks {
+		if atomic.LoadInt32(&errCount) >= int32(m) {
+			break
+		}
+		taskChan <- task
+	}
+	close(taskChan)
+
 	wg.Wait()
-	close(chErrCount)
 
-	// Wait for result (all complete or have a more than M errors)
-	if <-errChan {
-		return nil
+	if atomic.LoadInt32(&errCount) >= int32(m) {
+		return ErrErrorsLimitExceeded
 	}
-	return ErrErrorsLimitExceeded
+
+	return nil
 }
