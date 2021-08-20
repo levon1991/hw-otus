@@ -20,9 +20,9 @@ func pipe(in In, done In) Out {
 	out := make(Bi)
 	go func() {
 		defer func() {
+			close(out)
 			for range in {
 			}
-			close(out)
 		}()
 		for {
 			select {
